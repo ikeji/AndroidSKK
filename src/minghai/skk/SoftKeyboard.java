@@ -29,9 +29,19 @@ import android.view.View;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Properties;
+
+import jdbm.RecordManager;
+import jdbm.RecordManagerFactory;
+import jdbm.btree.BTree;
+import jdbm.helper.StringComparator;
+import jdbm.helper.Tuple;
+import jdbm.helper.TupleBrowser;
 
 import static minghai.skk.InputMode.*;
 
@@ -55,7 +65,8 @@ public class SoftKeyboard extends InputMethodService implements
    * to be used for on-screen text entry.
    */
   static final boolean PROCESS_HARD_KEYS = true;
-  static final String DICTIONARY = "/sdcard/skk_dict.db";
+  static final String DICTIONARY = "/sdcard/skk_dict_btree";
+  static final String BTREE_NAME = "skk_dict";
 
   private KeyboardView mInputView;
   private CandidateView mCandidateView;
@@ -87,6 +98,8 @@ public class SoftKeyboard extends InputMethodService implements
   private boolean isOkurigana = false;
   private String mOkurigana = null;
   private ArrayList<String> mCandidateList;
+  
+  private BTree mBTree;
 
   // ローマ字辞書
   private HashMap<String, String> mRomajiMap = new HashMap<String, String>();
@@ -124,11 +137,12 @@ public class SoftKeyboard extends InputMethodService implements
 		m.put("tya", "ちゃ");              m.put("tyu", "ちゅ");m.put("tye", "ちぇ");m.put("tyo", "ちょ");
 		m.put("dha", "でゃ");m.put("dhi", "でぃ");m.put("dhu", "でゅ");m.put("dhe", "でぇ");m.put("dho", "でょ");
 		m.put("dya", "ぢゃ");m.put("dyi", "ぢぃ");m.put("dyu", "ぢゅ");m.put("dye", "ぢぇ");m.put("dyo", "ぢょ");
-		m.put("mya", "みゃ");              m.put("myu", "みゅ");             m.put("myo", "みょ");
 		m.put("nya", "にゃ");              m.put("nyu", "にゅ");             m.put("nyo", "にょ");
 		m.put("hya", "ひゃ");              m.put("hyu", "ひゅ");             m.put("hyo", "ひょ");
 		m.put("pya", "ぴゃ");              m.put("pyu", "ぴゅ");             m.put("pyo", "ぴょ");
 		m.put("bya", "びゃ");              m.put("byu", "びゅ");             m.put("byo", "びょ");
+    m.put("mya", "みゃ");              m.put("myu", "みゅ");             m.put("myo", "みょ");
+    m.put("rya", "りゃ");              m.put("ryu", "りゅ");m.put("rye", "りぇ");m.put("ryo", "りょ");   
 	}
     
     /**
@@ -221,6 +235,31 @@ public class SoftKeyboard extends InputMethodService implements
     mPredictionOn = false;
     mCompletionOn = false;
     mCompletions = null;
+    
+    // Open Dictionary
+    RecordManager recman;
+    long          recid;
+    Properties    props;
+
+    props = new Properties();
+    try {
+      recman = RecordManagerFactory.createRecordManager( DICTIONARY, props );
+
+      // try to reload an existing B+Tree
+      recid = recman.getNamedObject( BTREE_NAME );
+      if (recid == 0) {
+        Log.d("TEST", "Dictionary not found: " + DICTIONARY);
+      }
+
+      mBTree = BTree.load( recman, recid );
+    
+    } catch (IOException e) {
+      Log.e("TEST", e.toString());
+      Toast t = new Toast(this);
+      t.setDuration(Toast.LENGTH_SHORT);
+      t.setText("Dictionary not found/loaded: " + DICTIONARY);
+      t.show();
+    }
 
     // We are now going to initialize our state based on the type of
     // text being edited.
@@ -539,20 +578,26 @@ public class SoftKeyboard extends InputMethodService implements
       }
       return;
     case 0x0A: // Enter Key
-      if (mInputMode == CHOOSE) {
+      switch (mInputMode) {
+      case CHOOSE:
         pickSuggestionManually(mChoosedIndex);
-      } else if (mInputMode == ENG2JAP) {
+        break;
+      case ENG2JAP:
         ic.commitText(mComposing, 1);
         mComposing.setLength(0);
         mInputMode = HIRAKANA;
-      } else if (mInputMode == KANJI) {
+        updateCandidates();
+        break;
+      case KANJI:
         ic.commitText(mKanji, 1);
         ic.commitText(mComposing, 1);
         mComposing.setLength(0);
         mKanji.setLength(0);
         mInputMode = HIRAKANA;
-      } else {
+        break;
+      default:
         keyDownUp(KeyEvent.KEYCODE_ENTER);
+        break;
       }
       return;
     case 'l':
@@ -612,6 +657,18 @@ public class SoftKeyboard extends InputMethodService implements
       ic.commitText(String.valueOf((char) pcode), 1);
       return;
     }
+    
+
+    // 英日変換なら区切り文字で確定するかそのままComposingに積む
+    if (mInputMode == ENG2JAP) {
+      if (isWordSeparator(pcode)) {
+        handleSeparator(pcode, mComposing);
+        return;
+      }
+
+      handleEnglish(pcode, keyCodes);
+      return;
+    }
 
     if (mInputMode == CHOOSE) {
       switch (pcode) {
@@ -644,17 +701,6 @@ public class SoftKeyboard extends InputMethodService implements
       }
     }
 
-    // 英日変換なら区切り文字で確定するかそのままComposingに積む
-    if (mInputMode == ENG2JAP) {
-      if (isWordSeparator(pcode)) {
-        handleSeparator(pcode, mComposing);
-        return;
-      }
-
-      handleEnglish(pcode, keyCodes);
-      return;
-    }
-    
     // 漢字モードで区切り文字の場合、変換開始
     if (isWordSeparator(pcode) && mInputMode == KANJI) {
       // 最後に単体の'n'で終わっている場合、'ん'に変換
@@ -672,11 +718,12 @@ public class SoftKeyboard extends InputMethodService implements
     if (isUpper) { // ローマ字変換のために小文字に戻す
       pcode = Character.toLowerCase(pcode);
     }
-    // シフトキーを離すのが面倒なのでOKURIGANA決定後に大文字の時にはシフト無効
+    // シフトキーを離すのが面倒なのでOKURIGANA決定時に大文字の時にはシフト無効
     if (mInputMode == OKURIGANA && isUpper) {
       isUpper = false;
     }
 
+    // ここでは既に漢字変換モードであるか平仮名片仮名の入力であるので一部の記号は全角にする
     pcode = changeSeparator2Zenkaku(pcode);
 
     // 'ん'と'っ'の処理
@@ -699,7 +746,7 @@ public class SoftKeyboard extends InputMethodService implements
       // 最初の平仮名はついシフトキーを押しっぱなしにしてしまうため、mKanjiの長さをチェック
       // mKanjiの長さが0の時はシフトが押されていなかったことにして下方へ継続させる
       if (mKanji.length() > 0 && mInputMode == KANJI) {
-        mKanji.append((char) pcode);
+        mKanji.append((char) pcode); //辞書検索には送り仮名の子音文字が必要
         ArrayList<String> cand = findKanji(mKanji.toString());
         // dictionary
         if (cand != null) {
@@ -708,7 +755,7 @@ public class SoftKeyboard extends InputMethodService implements
 
           mComposing.setLength(0);
           mComposing.append((char) pcode);
-          mKanji.deleteCharAt(mKanji.length() - 1);
+          mKanji.deleteCharAt(mKanji.length() - 1); // 送り仮名の子音文字を取り除く
 
           // 「あいうえお」なら即送り仮名決定
           if (isVowel(pcode)) {
@@ -726,6 +773,12 @@ public class SoftKeyboard extends InputMethodService implements
           }
         } else {
           // 変換失敗、辞書登録
+          ic.setComposingText(mKanji, 1);
+          mComposing.append((char) pcode);
+          mKanji.deleteCharAt(mKanji.length() - 1); // 送り仮名の子音文字を取り除く
+          mSuggestions.clear();
+          mSuggestions.add("IME：未登録");
+          setSuggestions(mSuggestions, false, false);
         }
 
         return;
@@ -768,8 +821,7 @@ public class SoftKeyboard extends InputMethodService implements
         mInputMode = CHOOSE;
         mOkurigana = (mOkurigana == null) ? hchr : mOkurigana.concat(hchr);
         if (mCandidateList != null)
-          ic.setComposingText(mCandidateList.get(mChoosedIndex).concat(
-              mOkurigana), 1);
+          ic.setComposingText(mCandidateList.get(mChoosedIndex).concat(mOkurigana), 1);
         return;
       } else {
         ic.commitText(hchr, 1);
@@ -807,7 +859,8 @@ public class SoftKeyboard extends InputMethodService implements
 
       mChoosedIndex = 0;
       mInputMode = CHOOSE;
-      setSuggestions(list, true, true);
+      ic.setComposingText(list.get(0), 1);
+      setSuggestions(list, false, true);
 
       return;
     }
@@ -957,38 +1010,38 @@ public class SoftKeyboard extends InputMethodService implements
 
   // Implementation of KeyboardViewListener
 
-  private ArrayList<String> findKanji(String obj) {
+  private ArrayList<String> findKanji(String key) {
     ArrayList<String> list = new ArrayList<String>();
+    
+    // open database and setup an object cache
+    try {
+      String value = (String)mBTree.find(key);
 
-    SQLiteDatabase db = SQLiteDatabase.openDatabase(DICTIONARY, null,
-        SQLiteDatabase.NO_LOCALIZED_COLLATORS | SQLiteDatabase.OPEN_READONLY);
-    Cursor cr = db.query("dictionary", new String[] { "key", "value" },
-        "key = ?", new String[] { obj }, null, null, null);
-    if (cr.getCount() <= 0) {
-      Log.d("TEST", "Dictoinary: Can't find Kanji for " + obj);
-      cr.close();
-      db.close();
-      return null;
+      if (value == null) {
+        Log.d("TEST", "Dictoinary: Can't find Kanji for " + key);
+        return null;
+      }
+
+      String[] va = value.split("/");
+      Log.d("TEST", "val length = " + va.length);
+
+      if (va.length <= 0) {
+        Log.e("TEST", "Invalid value found: Key = " + key + " value = " + value);
+        return null;
+      }
+
+
+      // val[0]は常に空文字列なので1から始める
+      for (int j = 1; j < va.length; j++) {
+        int k = va[j].indexOf(';'); // セミコロンで解説が始まる
+        if (k != -1) va[j] = va[j].substring(0, k);
+        list.add(va[j]);
+      }
+
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    cr.moveToFirst();
-    int i = cr.getColumnIndex("value");
-    String vs = cr.getString(i);
-    String[] val = vs.split("/");
-    Log.d("TEST", "val length = " + val.length);
-
-    if (val.length <= 0)
-      return null;
-
-    // val[0]は常に空文字列なので1から始める
-    for (int j = 1; j < val.length; j++) {
-      int k = val[j].indexOf(';'); // セミコロンで解説が始まる
-      if (k != -1)
-        val[j] = val[j].substring(0, k);
-      list.add(val[j]);
-    }
-
-    cr.close();
-    db.close();
 
     return list;
   }
@@ -1036,7 +1089,6 @@ public class SoftKeyboard extends InputMethodService implements
         String str = mComposing.toString();
         ArrayList<String> list = new ArrayList<String>();
         list.add(str);
-//        findKeys(str, list);
 
         setSuggestions(list, false, true);
       } else {
@@ -1047,36 +1099,19 @@ public class SoftKeyboard extends InputMethodService implements
 
   private void findKeys(String key, ArrayList<String> list) {
     long start = System.currentTimeMillis();
-    SQLiteDatabase db = SQLiteDatabase.openDatabase(DICTIONARY, null,
-        SQLiteDatabase.NO_LOCALIZED_COLLATORS | SQLiteDatabase.OPEN_READONLY);
-    Log.d("TEST", "DB connection: " + (System.currentTimeMillis() - start));
-//    Cursor cr = db.query("dictionary", new String[] { "key" },
-//        "key like ?", new String[] { key + "%" }, null, null, "key asc", "10");
-    Cursor cr = db.rawQuery("select key from dictionary where key like '" + key + "%'", null);
-    Log.d("TEST", "DB select: " + (System.currentTimeMillis() - start));
-    /*
-    int count = cr.getCount();
-    Log.d("TEST", "DB after getCount(): " + (System.currentTimeMillis() - start));
-    Log.d("TEST", "Number of similar keys = " + count);
-    if (count <= 0) {
-      cr.close();
-      db.close();
-      return;
+    Tuple         tuple = new Tuple();
+    TupleBrowser  browser;
+    try {
+      browser = mBTree.browse( key );
+      for (int i = 0; i < 5; i++) {
+        if (browser.getNext(tuple) == false) break;
+        list.add((String)tuple.getKey());
+      }
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
     }
-    */
-    Log.d("TEST", "DB before loop: " + (System.currentTimeMillis() - start));
-    cr.moveToFirst();
-    int i = cr.getColumnIndex("key");
-    do {
-      String vs = cr.getString(i);
-      list.add(vs);
-    } while(cr.moveToNext());
-
-    Log.d("TEST", "DB after loop: " + (System.currentTimeMillis() - start));
-    
-    cr.close();
-    db.close();
-    Log.d("TEST", "DB after close: " + (System.currentTimeMillis() - start));
+    Log.d("TEST", "findKeys finished for " + (System.currentTimeMillis() - start) + "[ms]");
   }
 
   public void setSuggestions(ArrayList<String> suggestions,
@@ -1111,17 +1146,16 @@ public class SoftKeyboard extends InputMethodService implements
         ic.commitText("", 0);
 
     } else { // length == 0
-      if (klen > 0)
-        mKanji.delete(klen - 1, klen);
+      if (klen > 0) mKanji.delete(klen - 1, klen);
       keyDownUp(KeyEvent.KEYCODE_DEL);
     }
-    if (mSuggestions != null)
-      mSuggestions.clear();
+    if (mSuggestions != null) mSuggestions.clear();
     updateCandidates();
     // 削除後の長さで更新
     clen = mComposing.length();
     klen = mKanji.length();
-    if (mInputMode == CHOOSE) {
+    switch (mInputMode) {
+    case CHOOSE:
       if (klen == 0) {
         mInputMode = (clen > 0) ? ENG2JAP : HIRAKANA;
       } else {
@@ -1129,15 +1163,20 @@ public class SoftKeyboard extends InputMethodService implements
       }
       isOkurigana = false;
       mOkurigana = null;
-    }
-    // 
-    else if (klen == 0 && clen == 0) {
-      switch (mInputMode) {
-      case KANJI:
-      case ENG2JAP:
-        mInputMode = HIRAKANA;
-        break;
+      break;
+    case OKURIGANA:
+      if (clen == 0) {
+        isOkurigana = false;
+        mOkurigana = null;
+        mInputMode = KANJI;
       }
+      break;
+    case KANJI:
+      if (klen == 0 && clen == 0) mInputMode = HIRAKANA;
+      break;
+    case ENG2JAP:
+      if (clen == 0) mInputMode = HIRAKANA;
+      break;
     }
   }
 

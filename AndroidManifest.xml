@@ -11,6 +11,12 @@
             </intent-filter>
             <meta-data android:name="android.view.im" android:resource="@xml/method" />
         </service>
+        
+        <activity android:name="SKKsettings" android:label="SKK Settings">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+            </intent-filter>
+        </activity>   
     </application>
     <uses-sdk android:minSdkVersion="3"/>
 </manifest> 

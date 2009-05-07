@@ -39,8 +39,15 @@ public class LatinKeyboardView extends KeyboardView {
         if (key.codes[0] == Keyboard.KEYCODE_CANCEL) {
             getOnKeyboardActionListener().onKey(KEYCODE_OPTIONS, null);
             return true;
+            /*
+        } else if (key.codes[0] == '0' && getKeyboard(). instanceof mPhoneKeyboard) {
+          // Long pressing on 0 in phone number keypad gives you a '+'.
+          getOnKeyboardActionListener().onKey('+', null);
+          return true;
+          */
         } else {
             return super.onLongPress(key);
         }
+        
     }
 }

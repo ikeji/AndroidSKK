@@ -24,10 +24,32 @@ public final class R {
     public static final class drawable {
         public static final int sym_keyboard_delete=0x7f020000;
         public static final int sym_keyboard_done=0x7f020001;
-        public static final int sym_keyboard_return=0x7f020002;
-        public static final int sym_keyboard_search=0x7f020003;
-        public static final int sym_keyboard_shift=0x7f020004;
-        public static final int sym_keyboard_space=0x7f020005;
+        public static final int sym_keyboard_feedback_delete=0x7f020002;
+        public static final int sym_keyboard_feedback_done=0x7f020003;
+        public static final int sym_keyboard_feedback_numalt=0x7f020004;
+        public static final int sym_keyboard_feedback_return=0x7f020005;
+        public static final int sym_keyboard_feedback_search=0x7f020006;
+        public static final int sym_keyboard_feedback_shift=0x7f020007;
+        public static final int sym_keyboard_feedback_shift_locked=0x7f020008;
+        public static final int sym_keyboard_feedback_space=0x7f020009;
+        public static final int sym_keyboard_num0=0x7f02000a;
+        public static final int sym_keyboard_num1=0x7f02000b;
+        public static final int sym_keyboard_num2=0x7f02000c;
+        public static final int sym_keyboard_num3=0x7f02000d;
+        public static final int sym_keyboard_num4=0x7f02000e;
+        public static final int sym_keyboard_num5=0x7f02000f;
+        public static final int sym_keyboard_num6=0x7f020010;
+        public static final int sym_keyboard_num7=0x7f020011;
+        public static final int sym_keyboard_num8=0x7f020012;
+        public static final int sym_keyboard_num9=0x7f020013;
+        public static final int sym_keyboard_numalt=0x7f020014;
+        public static final int sym_keyboard_numpound=0x7f020015;
+        public static final int sym_keyboard_numstar=0x7f020016;
+        public static final int sym_keyboard_return=0x7f020017;
+        public static final int sym_keyboard_search=0x7f020018;
+        public static final int sym_keyboard_shift=0x7f020019;
+        public static final int sym_keyboard_shift_locked=0x7f02001a;
+        public static final int sym_keyboard_space=0x7f02001b;
     }
     public static final class id {
         public static final int keyboard=0x7f080000;
@@ -43,15 +65,22 @@ public final class R {
          */
         public static final int label_go_key=0x7f070002;
         public static final int label_next_key=0x7f070003;
+        /**  Label for "switch to numeric" key.  Must be short to fit on key! 
+         */
+        public static final int label_phone_key=0x7f070005;
         public static final int label_send_key=0x7f070004;
         /**  Symbols that are commonly considered word separators in this language 
          */
         public static final int word_separators=0x7f070001;
     }
     public static final class xml {
-        public static final int method=0x7f040000;
-        public static final int qwerty=0x7f040001;
-        public static final int symbols=0x7f040002;
-        public static final int symbols_shift=0x7f040003;
+        public static final int kbd_phone=0x7f040000;
+        public static final int kbd_phone_symbols=0x7f040001;
+        public static final int kbd_popup_template=0x7f040002;
+        public static final int method=0x7f040003;
+        public static final int prefs=0x7f040004;
+        public static final int qwerty=0x7f040005;
+        public static final int symbols=0x7f040006;
+        public static final int symbols_shift=0x7f040007;
     }
 }

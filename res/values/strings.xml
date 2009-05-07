@@ -28,4 +28,6 @@
     <string name="label_go_key">Go</string>
     <string name="label_next_key">Next</string>
     <string name="label_send_key">Send</string>
+    <!-- Label for "switch to numeric" key.  Must be short to fit on key! -->
+    <string name="label_phone_key">123</string>
 </resources>

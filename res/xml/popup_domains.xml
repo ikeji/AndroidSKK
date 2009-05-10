@@ -18,8 +18,17 @@
 */
 -->
 
-<resources>
-    <dimen name="key_height">50dip</dimen>
-    <dimen name="candidate_font_height">18sp</dimen>
-    <dimen name="candidate_vertical_padding">6sp</dimen>
-</resources>
+<Keyboard xmlns:android="http://schemas.android.com/apk/res/android"
+    android:keyWidth="15%p"
+    android:horizontalGap="0px"
+    android:verticalGap="0px"
+    android:keyHeight="@dimen/key_height"
+    >
+
+    <Row android:rowEdgeFlags="top|bottom">
+        <Key android:keyLabel=".net" android:keyOutputText=".net" android:keyEdgeFlags="left" />
+        <Key android:keyLabel=".org" android:keyOutputText=".org"/>
+        <Key android:keyLabel=".gov" android:keyOutputText=".gov"/>
+        <Key android:keyLabel=".tv" android:keyOutputText=".tv" android:keyEdgeFlags="right" />
+    </Row>
+</Keyboard>

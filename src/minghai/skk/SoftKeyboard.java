@@ -16,8 +16,6 @@
 
 package minghai.skk;
 
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
@@ -335,7 +333,7 @@ public class SoftKeyboard extends InputMethodService implements
 
     // Update the label on the enter key, depending on what the application
     // says it will do.
-    mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions);
+    mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions, 0);
   }
 
   /**
@@ -475,6 +473,8 @@ public class SoftKeyboard extends InputMethodService implements
     Log.d("TEST", "onKeyDown(): keyCode = " + keyCode + " mInputMode = " + mInputMode);
     Log.d("TEST", "mComposing = " + mComposing + " mKanji = " + mKanji);
 
+    InputConnection ic = getCurrentInputConnection();
+    
     switch (keyCode) {
     case KeyEvent.KEYCODE_BACK:
       // The InputMethodService already takes care of the back
@@ -508,7 +508,13 @@ public class SoftKeyboard extends InputMethodService implements
       default:
         return false;
       }
-
+      
+    case KeyEvent.KEYCODE_DPAD_LEFT:     
+      choosePrevious(ic);
+      return true;
+    case KeyEvent.KEYCODE_DPAD_RIGHT:
+      chooseNext(ic);
+      return true;
     default:
       // For all other keys, if we want to do transformations on
       // text being entered with a hard keyboard, we need to process
@@ -517,7 +523,7 @@ public class SoftKeyboard extends InputMethodService implements
         return true;
       }
     }
-    Log.d("TEST", "traslateKeyDown: can't reach onKey()");
+    Log.d("TEST", "traslateKeyDown: can't reach onKey() : mPredictionOn = " + mPredictionOn);
     return super.onKeyDown(keyCode, event);
   }
 
@@ -589,13 +595,17 @@ public class SoftKeyboard extends InputMethodService implements
         updateCandidates();
         break;
       case KANJI:
-        ic.commitText(mKanji, 1);
+        ic.commitText(mKanji.append(mComposing), 1);
         ic.commitText(mComposing, 1);
         mComposing.setLength(0);
         mKanji.setLength(0);
         mInputMode = HIRAKANA;
         break;
       default:
+        ic.commitText(mKanji, 1);
+        ic.commitText(mComposing, 1);
+        mComposing.setLength(0);
+        mKanji.setLength(0);
         keyDownUp(KeyEvent.KEYCODE_ENTER);
         break;
       }
@@ -673,25 +683,27 @@ public class SoftKeyboard extends InputMethodService implements
     if (mInputMode == CHOOSE) {
       switch (pcode) {
       case ' ':
-        mChoosedIndex++;
-        if (mChoosedIndex >= mSuggestions.size()) mChoosedIndex = 0;
-        mCandidateView.chooseNext(mChoosedIndex);
-        String cad = mSuggestions.get(mChoosedIndex);
-        if (isOkurigana) cad = cad.concat(mOkurigana);
-        ic.setComposingText(cad, 1);
+        chooseNext(ic);
         return;
       case 'x':
-        mChoosedIndex--;
-        if (mChoosedIndex < 0) mChoosedIndex = mSuggestions.size() - 1;
-        mCandidateView.chooseNext(mChoosedIndex);
-        cad = mSuggestions.get(mChoosedIndex);
-        if (isOkurigana) cad = cad.concat(mOkurigana);
-        ic.setComposingText(cad, 1);
+        choosePrevious(ic);
+        if (mChoosedIndex == mSuggestions.size() - 1) {
+          if (mKanji.length() != 0) {
+            // Back to Kanji
+            if (isOkurigana) mKanji.append(mOkurigana);
+            ic.setComposingText(mKanji, 1);
+            mInputMode = KANJI;
+          } else {
+            ic.setComposingText(mComposing, 1);
+            mInputMode = ENG2JAP;
+          }
+          setSuggestions(null, false, false);
+        }
         return;
       case Keyboard.KEYCODE_DELETE:
         handleBackspace();
         updateCandidates();
-        mInputMode = (mKanji.length() > 0) ? HIRAKANA : ENG2JAP;
+        //mInputMode = (mKanji.length() > 0) ? HIRAKANA : ENG2JAP;
         return;
       default:
         pickSuggestionManually(mChoosedIndex);
@@ -747,12 +759,13 @@ public class SoftKeyboard extends InputMethodService implements
       // mKanjiの長さが0の時はシフトが押されていなかったことにして下方へ継続させる
       if (mKanji.length() > 0 && mInputMode == KANJI) {
         mKanji.append((char) pcode); //辞書検索には送り仮名の子音文字が必要
+        ic.setComposingText(mKanji, 1);
         ArrayList<String> cand = findKanji(mKanji.toString());
         // dictionary
         if (cand != null) {
           isOkurigana = true;
           mChoosedIndex = 0;
-
+          
           mComposing.setLength(0);
           mComposing.append((char) pcode);
           mKanji.deleteCharAt(mKanji.length() - 1); // 送り仮名の子音文字を取り除く
@@ -798,7 +811,7 @@ public class SoftKeyboard extends InputMethodService implements
     }
 
 
-    String hchr; // ひらがな1文字
+    String hchr; // ひらがな、1ローマ字単位分、"あ、い、う、、きゃ、き、きゅ、、"
     if (pcode == 'ー') {
       hchr = "ー";
     } else {
@@ -828,24 +841,59 @@ public class SoftKeyboard extends InputMethodService implements
       }
 
       // sendKey(pcode);
-      updateShiftKeyState(ciei);
       updateCandidates();
       return;
     }
 
-    if (isAlphabet(pcode) && mPredictionOn) {
-      if (mInputMode != KANJI) {
+    // 表示して終了:
+    // ここに来たならmInputModeに限らず未確定
+    switch (mInputMode) {
+    case HIRAKANA:
+    case KATAKANA:
+      if (isAlphabet(pcode)) {
         ic.setComposingText(mComposing, 1);
+      } else {
+        ic.commitText(mComposing, 1);
+        mComposing.setLength(0);
       }
-      updateShiftKeyState(ciei);
+
       updateCandidates();
-    } else {
+      break;
+    case KANJI:
+    case OKURIGANA:
+      String str = "" + mKanji + mComposing;
+      ic.setComposingText(str, 1);
+      updateCandidates();
+      break;
+    default:
       ic.commitText(mComposing, 1);
       mComposing.setLength(0);
+      break;
     }
 
     Log.d("TEST", "End: mComposing = " + mComposing + " mKanji = " + mKanji + " mInputMode = " + mInputMode);
     Log.d("TEST", "--------------------------------------------------------------------------------");
+  }
+
+  private void choosePrevious(InputConnection ic) {
+    String cad;
+    mChoosedIndex--;
+    if (mChoosedIndex < 0) mChoosedIndex = mSuggestions.size() - 1;
+    mCandidateView.choose(mChoosedIndex);
+    cad = mSuggestions.get(mChoosedIndex);
+    if (isOkurigana) cad = cad.concat(mOkurigana);
+    ic.setComposingText(cad, 1);
+    return;
+  }
+
+  private void chooseNext(InputConnection ic) {
+    mChoosedIndex++;
+    if (mChoosedIndex >= mSuggestions.size()) mChoosedIndex = 0;
+    mCandidateView.choose(mChoosedIndex);
+    String cad = mSuggestions.get(mChoosedIndex);
+    if (isOkurigana) cad = cad.concat(mOkurigana);
+    ic.setComposingText(cad, 1);
+    return;
   }
 
   private void handleSeparator(int pcode, StringBuilder composing) {
@@ -899,6 +947,9 @@ public class SoftKeyboard extends InputMethodService implements
     case '?':
       c = '？';
       break;
+    case '~':
+      c = '～';
+      break;
     default:
       c = (char) pcode;
     }
@@ -908,9 +959,8 @@ public class SoftKeyboard extends InputMethodService implements
   // "ん"と"っ"を取り扱う
   // KANJIならmKanjiにも足し、出力を変える
   private void handleNN(InputConnection ic, String str) {
-    if (mInputMode == KATAKANA) {
-      str = hirakana2katakana(str);
-    }
+    if (mInputMode == KATAKANA) str = hirakana2katakana(str);
+    
     if (mInputMode == KANJI) {
       mKanji.append(str);
       ic.setComposingText(mKanji, 1);
@@ -918,7 +968,7 @@ public class SoftKeyboard extends InputMethodService implements
       mOkurigana = str;
       mKanji.append(str);
       ic.setComposingText(mKanji, 1);
-    } else {
+    } else { // HIRAGANA, KATAKANA
       ic.commitText(str, 1);
     }
     mComposing.setLength(0);
@@ -975,9 +1025,8 @@ public class SoftKeyboard extends InputMethodService implements
   /**
    * Helper to determine if a given character code is alphabetic.
    */
-  private boolean isAlphabet(int code) {
-    return ((code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)) ? true
-        : false;
+  static public boolean isAlphabet(int code) {
+    return ((code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)) ? true : false;
   }
 
   /**
@@ -1082,34 +1131,81 @@ public class SoftKeyboard extends InputMethodService implements
    * This will need to be filled in by however you are determining candidates.
    */
   private void updateCandidates() {
-    if (!mCompletionOn) {
-      mChoosedIndex = 0;
-      int len = mComposing.length();
-      if (len > 0) {
-        String str = mComposing.toString();
-        ArrayList<String> list = new ArrayList<String>();
-        list.add(str);
-
-        setSuggestions(list, false, true);
-      } else {
-        setSuggestions(null, false, false);
-      }
+    mChoosedIndex = 0;
+    int clen = mComposing.length();
+    int klen = mKanji.length();
+    
+    if (clen == 0 && klen == 0) {
+      setSuggestions(null, false, true);
+      return;
     }
+
+    String str = mComposing.toString();
+    ArrayList<String> list = new ArrayList<String>();
+
+    switch (mInputMode) {
+    case HIRAKANA:
+    case KATAKANA:
+    case OKURIGANA:
+      list.add(str);
+      break;
+    case ENG2JAP:
+      list.add(str);
+      findKeys(str, list);
+      break;
+    case KANJI:
+      if (clen == 0) {
+        str = mKanji.toString();
+        list.add(str);
+      } else {
+        list.add(str);
+        String tmp = str.concat("a"); // ローマ字入力中はとりあえずア行に借り決めして検索。こうしないと英単語が出て使えない
+        tmp = mRomajiMap.get(tmp);
+        if (tmp != null) str = tmp;
+        str = mKanji.toString().concat(str);
+      }
+
+      findKeys(str, list);
+      break;
+    default:
+      Log.d("TEST", "updateCandidates(): Unknown case: " + mInputMode);
+    }
+    
+    setSuggestions(list, false, false);
   }
 
   private void findKeys(String key, ArrayList<String> list) {
+    Log.d("TEST", "findkeys(): key = " + key + " mCompose = " + mComposing + "mKanji = " + mKanji + " mIM = " + mInputMode);
     long start = System.currentTimeMillis();
     Tuple         tuple = new Tuple();
     TupleBrowser  browser;
     try {
       browser = mBTree.browse( key );
-      for (int i = 0; i < 5; i++) {
-        if (browser.getNext(tuple) == false) break;
-        list.add((String)tuple.getKey());
+      if (browser.getNext(tuple) == false) return;
+      // 最初の一つがkeyと同じ場合listに追加しない
+      String first = (String)tuple.getKey();
+      if (!first.equals(key)) list.add(first);
+      
+      if (mInputMode == ENG2JAP) {
+        for (int i = 0; i < 5; i++) {
+          if (browser.getNext(tuple) == false) break;
+          list.add((String)tuple.getKey());
+        }
+        return;
       }
+      
+      int klen = key.length();
+      int c = 0;
+      while (c < 6) {
+        if (browser.getNext(tuple) == false) break;
+        String str = (String)tuple.getKey();
+        if ((str.length() == klen + 1) && isAlphabet(str.charAt(klen))) continue;
+        list.add(str);
+        c++;
+      }
+
     } catch (IOException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      throw new RuntimeException(e);
     }
     Log.d("TEST", "findKeys finished for " + (System.currentTimeMillis() - start) + "[ms]");
   }
@@ -1130,7 +1226,7 @@ public class SoftKeyboard extends InputMethodService implements
   private void handleBackspace() {
     int clen = mComposing.length();
     int klen = mKanji.length();
-    Log.d("TEST", "handleBackspace(): clen = " + clen + " klen = " + klen);
+    Log.d("TEST", "handleBackspace(): clen = " + clen + " klen = " + klen + " mInp = " + mInputMode + " mComp = " + mComposing + " mKan = " + mKanji);
 
     InputConnection ic = getCurrentInputConnection();
     if (clen > 1) {
@@ -1274,15 +1370,46 @@ public class SoftKeyboard extends InputMethodService implements
       // text, we would commit one of them here. But for this sample,
       // we will just commit the current text.
       String s = mSuggestions.get(index);
-      ic.commitText(s, 1);
-      if (isOkurigana) ic.commitText(mOkurigana, 1);
+      
+      switch (mInputMode) {
+      case CHOOSE:
+        ic.commitText(s, 1);
+        if (isOkurigana) ic.commitText(mOkurigana, 1);
 
-      mComposing.setLength(0);
-      mKanji.setLength(0);
-      mInputMode = HIRAKANA;
-      isOkurigana = false;
-      mOkurigana = null;
-      updateCandidates();
+        mComposing.setLength(0);
+        mKanji.setLength(0);
+        mInputMode = HIRAKANA;
+        isOkurigana = false;
+        mOkurigana = null;
+        updateCandidates();
+        break;
+      case ENG2JAP:
+        ic.setComposingText(s, 1);
+        mComposing.setLength(0);
+        mComposing.append(s);
+        ArrayList<String> list = findKanji(s);
+        setSuggestions(list, false, true);
+        mInputMode = CHOOSE;
+        break;
+      case KANJI:
+        ic.setComposingText(s, 1);
+        int li = s.length() - 1;
+        int last = s.codePointAt(li);
+        if (isAlphabet(last)) {
+          mKanji.setLength(0);
+          mKanji.append(s.substring(0, li));
+          mComposing.setLength(0);
+          onKey(Character.toUpperCase(last), null); 
+        } else {
+          mKanji.setLength(0);
+          mKanji.append(s);
+          mComposing.setLength(0);
+          list = findKanji(s);
+          setSuggestions(list, false, true);
+          mInputMode = CHOOSE;
+        }
+        break;
+      }
     }
   }
 

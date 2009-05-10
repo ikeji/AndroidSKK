@@ -50,7 +50,7 @@ public class CandidateView extends View {
     private int[] mWordWidth = new int[MAX_SUGGESTIONS];
     private int[] mWordX = new int[MAX_SUGGESTIONS];
 
-    private static final int X_GAP = 10;
+    private static final int X_GAP = 5;
     
     private static final List<String> EMPTY_LIST = new ArrayList<String>();
     
@@ -230,7 +230,7 @@ public class CandidateView extends View {
         } else if (scrolled == ScrollMode.NEXT && cx != tx) {
         	scrollTo(cx, getScrollY());
         	invalidate();
-            mScrolled = ScrollMode.STOP;
+          mScrolled = ScrollMode.STOP;
         }
     }
     
@@ -338,7 +338,7 @@ public class CandidateView extends View {
         invalidate();
     }
 
-	public void chooseNext(int choosedIndex) {
+	public void choose(int choosedIndex) {
 		mScrolled = ScrollMode.NEXT;
 		invalidate();
 	}

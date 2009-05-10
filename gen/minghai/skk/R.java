@@ -8,6 +8,12 @@
 package minghai.skk;
 
 public final class R {
+    public static final class array {
+        /**  Array of prediction modes 
+         */
+        public static final int prediction_modes=0x7f080000;
+        public static final int prediction_modes_values=0x7f080001;
+    }
     public static final class attr {
     }
     public static final class color {
@@ -53,35 +59,231 @@ public final class R {
         public static final int sym_keyboard_space=0x7f02001c;
     }
     public static final class id {
-        public static final int keyboard=0x7f080000;
+        public static final int keyboard=0x7f090000;
+        public static final int mode_email=0x7f090003;
+        public static final int mode_im=0x7f090004;
+        public static final int mode_normal=0x7f090001;
+        public static final int mode_url=0x7f090002;
     }
     public static final class layout {
         public static final int input=0x7f030000;
     }
     public static final class string {
+        /**  Indicates that a word has been added to the dictionary 
+         */
+        public static final int added_word=0x7f070023;
+        /**  Accented forms of "a" 
+         */
+        public static final int alternates_for_a=0x7f070024;
+        /**  Accented forms of "c" 
+         */
+        public static final int alternates_for_c=0x7f07002b;
+        /**  Accented characters related to "d" 
+         */
+        public static final int alternates_for_d=0x7f070001;
+        /**  Accented forms of "e" 
+         */
+        public static final int alternates_for_e=0x7f070025;
+        /**  Accented forms of "i" 
+         */
+        public static final int alternates_for_i=0x7f070026;
+        /**  Accented forms of "n" 
+         */
+        public static final int alternates_for_n=0x7f07002a;
+        /**  Accented forms of "o" 
+         */
+        public static final int alternates_for_o=0x7f070027;
+        /**  Accented characters related to "r" 
+         */
+        public static final int alternates_for_r=0x7f070002;
+        /**  Letters associated with "s" 
+         */
+        public static final int alternates_for_s=0x7f070029;
+        /**  Accented characters related to "t" 
+         */
+        public static final int alternates_for_t=0x7f070003;
+        /**  Accented forms of "u" 
+         */
+        public static final int alternates_for_u=0x7f070028;
+        /**  Accented forms of "y" 
+         */
+        public static final int alternates_for_y=0x7f07002c;
+        /**  Accented forms of "z" 
+         */
+        public static final int alternates_for_z=0x7f07002d;
+        /**  Option to enable auto capitalization of sentences 
+         */
+        public static final int auto_cap=0x7f070016;
+        /**  Description for auto cap 
+         */
+        public static final int auto_cap_summary=0x7f070017;
+        /**  Option to enable auto completion 
+         */
+        public static final int auto_complete=0x7f07001e;
+        /**  Dialog title for auto complete choices 
+         */
+        public static final int auto_complete_dialog_title=0x7f070013;
+        /**  Description for auto completion 
+         */
+        public static final int auto_complete_summary=0x7f07001f;
+        /**  Option to automatically correct word on hitting space 
+         */
+        public static final int auto_correction=0x7f07000e;
+        /**  Description for auto_correction 
+         */
+        public static final int auto_correction_summary=0x7f07000f;
+        /**  Option to enable auto punctuate 
+         */
+        public static final int auto_punctuate=0x7f070018;
+        /**  Description for auto punctuate 
+         */
+        public static final int auto_punctuate_summary=0x7f070019;
         /**  Title for Latin keyboard  
          */
-        public static final int ime_name=0x7f070000;
-        /**  Labels on soft keys 
+        public static final int english_ime_name=0x7f070006;
+        /**  Title for Latin keyboard settings activity / dialog 
          */
-        public static final int label_go_key=0x7f070002;
-        public static final int label_next_key=0x7f070003;
+        public static final int english_ime_settings=0x7f070007;
+        /**  Option to enable using nearby keys when correcting/predicting 
+         */
+        public static final int hit_correction=0x7f07000a;
+        /**  Option to enable using nearby keys when correcting/predicting in landscape
+         */
+        public static final int hit_correction_land=0x7f07000c;
+        /**  Description for hit_correction in landscape 
+         */
+        public static final int hit_correction_land_summary=0x7f07000d;
+        /**  Description for hit_correction  
+         */
+        public static final int hit_correction_summary=0x7f07000b;
+        /**  Title for Latin keyboard  
+         */
+        public static final int ime_name=0x7f070004;
+        /**  Label for "switch to alphabetic" key.  Must be short to fit on key! 
+         */
+        public static final int label_alpha_key=0x7f070040;
+        /**  Label for ALT modifier key.  Must be short to fit on key! 
+         */
+        public static final int label_alt_key=0x7f070041;
+        /**  Label for soft enter key when it performs DONE action.  Must be short to fit on key! 
+         */
+        public static final int label_done_key=0x7f07003c;
+        /**  Label for soft enter key when it performs GO action.  Must be short to fit on key! 
+         */
+        public static final int label_go_key=0x7f07003a;
+        /**  Label for soft enter key when it performs NEXT action.  Must be short to fit on key! 
+         */
+        public static final int label_next_key=0x7f07003b;
         /**  Label for "switch to numeric" key.  Must be short to fit on key! 
          */
-        public static final int label_phone_key=0x7f070005;
-        public static final int label_send_key=0x7f070004;
+        public static final int label_phone_key=0x7f07003f;
+        /**  Label for soft enter key when it performs SEND action.  Must be short to fit on key! 
+         */
+        public static final int label_send_key=0x7f07003d;
+        /**  Label for "switch to symbols" key.  Must be short to fit on key! 
+         */
+        public static final int label_symbol_key=0x7f07003e;
+        /**  Option to enable text prediction 
+         */
+        public static final int prediction=0x7f070010;
+        /**  Don't translate 
+         */
+        public static final int prediction_basic=0x7f070021;
+        /**  Category title for text prediction 
+         */
+        public static final int prediction_category=0x7f070011;
+        /**  Don't translate 
+         */
+        public static final int prediction_full=0x7f070022;
+        /**  Option to enable text prediction in landscape 
+         */
+        public static final int prediction_landscape=0x7f070014;
+        /**  Description for text prediction 
+         */
+        public static final int prediction_landscape_summary=0x7f070015;
+        /**  Don't translate 
+         */
+        public static final int prediction_none=0x7f070020;
+        /**  Description for text prediction 
+         */
+        public static final int prediction_summary=0x7f070012;
+        /**  Option to enable quick fixes 
+         */
+        public static final int quick_fixes=0x7f07001a;
+        /**  Description for quick fixes 
+         */
+        public static final int quick_fixes_summary=0x7f07001b;
+        /**  Symbols that are commonly considered word separators in this language 
+ Symbols that are sentence separators, for purposes of making it hug the last sentence. 
+         */
+        public static final int sentence_separators=0x7f070000;
+        /**  Option to enable showing suggestions 
+         */
+        public static final int show_suggestions=0x7f07001c;
+        /**  Description for show suggestions 
+         */
+        public static final int show_suggestions_summary=0x7f07001d;
+        /**  Option to play back sound on keypress in soft keyboard 
+         */
+        public static final int sound_on_keypress=0x7f070009;
+        /**  Tip to press ?123 to access numbers and symbols 
+         */
+        public static final int tip_access_symbols=0x7f070030;
+        /**  Tip to long press on typed word to add to dictionary 
+         */
+        public static final int tip_add_to_dictionary=0x7f070031;
+        /**  Tip to dismiss keyboard 
+         */
+        public static final int tip_dismiss=0x7f07002f;
+        /**  Tip to long press on keys 
+         */
+        public static final int tip_long_press=0x7f07002e;
+        /**  Tutorial tip 4 - How to switch back to alphabet keyboard 
+         */
+        public static final int tip_to_close_symbols=0x7f070037;
+        /**  Tutorial tip 5 - How to launch keyboard settings 
+         */
+        public static final int tip_to_launch_settings=0x7f070038;
+        /**  Tutorial tip 1 - The keyboard opens any time you touch a text field 
+         */
+        public static final int tip_to_open_keyboard=0x7f070034;
+        /**  Tutorial tip 3 - How to switch to number/symbol keyboard 
+         */
+        public static final int tip_to_open_symbols=0x7f070036;
+        /**  Tutorial tip 6 - Done with the tutorial 
+         */
+        public static final int tip_to_start_typing=0x7f070039;
+        /**  Tutorial tip 2 - Touch and hold a key to view accents (examples) 
+         */
+        public static final int tip_to_view_accents=0x7f070035;
+        /**  Instruction to touch the bubble to continue 
+         */
+        public static final int touch_to_continue=0x7f070032;
+        /**  Instruction to touch the bubble to start typing 
+         */
+        public static final int touch_to_finish=0x7f070033;
+        /**  Option to provide vibrate/haptic feedback on keypress 
+         */
+        public static final int vibrate_on_keypress=0x7f070008;
         /**  Symbols that are commonly considered word separators in this language 
          */
-        public static final int word_separators=0x7f070001;
+        public static final int word_separators=0x7f070005;
     }
     public static final class xml {
-        public static final int kbd_phone=0x7f040000;
-        public static final int kbd_phone_symbols=0x7f040001;
-        public static final int kbd_popup_template=0x7f040002;
-        public static final int method=0x7f040003;
-        public static final int prefs=0x7f040004;
-        public static final int qwerty=0x7f040005;
-        public static final int symbols=0x7f040006;
-        public static final int symbols_shift=0x7f040007;
+        public static final int kbd_alpha=0x7f040000;
+        public static final int kbd_phone=0x7f040001;
+        public static final int kbd_phone_symbols=0x7f040002;
+        public static final int kbd_popup_template=0x7f040003;
+        public static final int kbd_qwerty=0x7f040004;
+        public static final int kbd_symbols=0x7f040005;
+        public static final int kbd_symbols_shift=0x7f040006;
+        public static final int method=0x7f040007;
+        public static final int popup_domains=0x7f040008;
+        public static final int popup_punctuation=0x7f040009;
+        public static final int popup_smileys=0x7f04000a;
+        public static final int prefs=0x7f04000b;
+        public static final int qwerty=0x7f04000c;
+        public static final int symbols=0x7f04000d;
+        public static final int symbols_shift=0x7f04000e;
     }
 }

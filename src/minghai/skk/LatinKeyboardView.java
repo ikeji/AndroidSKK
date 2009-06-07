@@ -35,6 +35,7 @@ public class LatinKeyboardView extends KeyboardView {
 
   static final int KEYCODE_OPTIONS = -100;
   static final int KEYCODE_SHIFT_LONGPRESS = -101;
+  static final int KEYCODE_SLASH_LONGPRESS = -102;
   
   private Keyboard mPhoneKeyboard;
 
@@ -69,11 +70,16 @@ public class LatinKeyboardView extends KeyboardView {
           return true;
         } else
           return super.onLongPress(key);
+      case '/':
+        kal.onKey(KEYCODE_SLASH_LONGPRESS, null);
+        return true;
       default:
+        /*
           if (SoftKeyboard.isAlphabet(kcode)) {
             kal.onKey(Character.toUpperCase(kcode), null);
             return true;
           }
+          */
           return super.onLongPress(key);
       }
   }

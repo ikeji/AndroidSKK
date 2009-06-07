@@ -58,7 +58,7 @@
     </Row>
     
     <Row>
-        <Key android:codes="97" android:keyLabel="a" android:horizontalGap="5%p" 
+        <Key android:codes="97" android:keyLabel="a" 
                 android:popupKeyboard="@xml/kbd_popup_template"
                 android:popupCharacters="@string/alternates_for_a"
                 android:keyEdgeFlags="left"/>
@@ -74,7 +74,8 @@
         <Key android:codes="104" android:keyLabel="h"/>
         <Key android:codes="106" android:keyLabel="j"/>
         <Key android:codes="107" android:keyLabel="k"/>
-        <Key android:codes="108" android:keyLabel="l" android:keyEdgeFlags="right"/>
+        <Key android:codes="108" android:keyLabel="l"/>
+        <Key android:codes="47"  android:keyLabel="/" android:keyEdgeFlags="right"/>
     </Row>
     
     <Row>

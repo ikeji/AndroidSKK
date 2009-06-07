@@ -156,7 +156,7 @@ public class KeyboardSwitcher {
         }
         mInputView.setKeyboard(keyboard);
         keyboard.setShifted(false);
-        keyboard.setShiftLocked(keyboard.isShiftLocked());
+        keyboard.setShiftLocked(false);
         keyboard.setImeOptions(mContext.getResources(), mMode, imeOptions);
     }
 

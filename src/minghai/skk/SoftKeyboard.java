@@ -16,9 +16,16 @@
 
 package minghai.skk;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.res.Configuration;
 import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
+import android.media.AudioManager;
+import android.text.TextUtils;
 import android.text.method.MetaKeyKeyListener;
 import android.util.Log;
 import android.view.KeyCharacterMap;
@@ -26,6 +33,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
+import static android.view.inputmethod.EditorInfo.*;
 import android.view.inputmethod.InputConnection;
 import android.widget.Toast;
 
@@ -66,7 +74,8 @@ public class SoftKeyboard extends InputMethodService implements
   static final String DICTIONARY = "/sdcard/skk_dict_btree";
   static final String BTREE_NAME = "skk_dict";
 
-  private KeyboardView mInputView;
+  private LatinKeyboardView mInputView;
+  private CandidateViewContainer mCandidateViewContainer;
   private CandidateView mCandidateView;
   private CompletionInfo[] mCompletions;
   private ArrayList<String> mSuggestions;
@@ -82,13 +91,13 @@ public class SoftKeyboard extends InputMethodService implements
 
   public int mChoosedIndex;
 
-  private LatinKeyboard mSymbolsKeyboard;
-  private LatinKeyboard mSymbolsShiftedKeyboard;
-  private LatinKeyboard mQwertyKeyboard;
-  private LatinKeyboard mPhoneKeyboard;
-  private LatinKeyboard mPhoneSymbolsKeyboard;
+  private KeyboardSwitcher mKeyboardSwitcher;
 
   private LatinKeyboard mCurKeyboard;
+  
+  private AudioManager mAudioManager;
+  private final float FX_VOLUME = 1.0f;
+  private boolean mSilentMode;
 
   private String mWordSeparators;
 
@@ -150,89 +159,12 @@ public class SoftKeyboard extends InputMethodService implements
   @Override
   public void onCreate() {
     super.onCreate();
+    mKeyboardSwitcher = new KeyboardSwitcher(this);
     mWordSeparators = getResources().getString(R.string.word_separators);
-  }
-
-  /**
-   * This is the point where you can do all of your UI initialization. It is
-   * called after creation and any configuration change.
-   */
-  @Override
-  public void onInitializeInterface() {
-    Log.d("TEST", "onInitializeInterface()");
-    if (mQwertyKeyboard != null) {
-      // Configuration changes can happen after the keyboard gets recreated,
-      // so we need to be able to re-build the keyboards if the available
-      // space has changed.
-      int displayWidth = getMaxWidth();
-      if (displayWidth == mLastDisplayWidth) {
-        Log.d("TEST", "displayWidth hasn't changed.");
-        return;
-      }
-      mLastDisplayWidth = displayWidth;
-    }
-    mQwertyKeyboard = new LatinKeyboard(this, R.xml.qwerty);
-    mSymbolsKeyboard = new LatinKeyboard(this, R.xml.symbols);
-    mSymbolsShiftedKeyboard = new LatinKeyboard(this, R.xml.symbols_shift);
-    mPhoneKeyboard = new LatinKeyboard(this, R.xml.kbd_phone);
-    mPhoneSymbolsKeyboard = new LatinKeyboard(this, R.xml.kbd_phone_symbols);
-  }
-
-  /**
-   * Called by the framework when your view for creating input needs to be
-   * generated. This will be called the first time your input method is
-   * displayed, and every time it needs to be re-created such as due to a
-   * configuration change.
-   */
-  @Override
-  public View onCreateInputView() {
-    Log.d("TEST", "onCreateInputView()");
-    mInputView = (KeyboardView) getLayoutInflater().inflate(R.layout.input,
-        null);
-    mInputView.setOnKeyboardActionListener(this);
-    mInputView.setKeyboard(mQwertyKeyboard);
-    return mInputView;
-  }
-
-  /**
-   * Called by the framework when your view for showing candidates needs to be
-   * generated, like {@link #onCreateInputView}.
-   */
-  @Override
-  public View onCreateCandidatesView() {
-    Log.d("TEST", "onCreateCandidatesView()");
-    mCandidateView = new CandidateView(this);
-    mCandidateView.setService(this);
-    return mCandidateView;
-  }
-
-  /**
-   * This is the main point where we do our initialization of the input method
-   * to begin operating on an application. At this point we have been bound to
-   * the client, and are now receiving all of the detailed information about the
-   * target of our edits.
-   */
-  @Override
-  public void onStartInput(EditorInfo attribute, boolean restarting) {
-    Log.d("TEST", "onStartInput()");
-    super.onStartInput(attribute, restarting);
-
-    // Reset our state. We want to do this even if restarting, because
-    // the underlying state of the text editor could have changed in any way.
-    mComposing.setLength(0);
-    mKanji.setLength(0);
-    mCandidateList = null;
-    isOkurigana = false;
-    updateCandidates();
-
-    if (!restarting) {
-      // Clear shift states.
-      mMetaState = 0;
-    }
-
-    mPredictionOn = false;
-    mCompletionOn = false;
-    mCompletions = null;
+    
+    // register to receive ringer mode changes for silent mode
+    IntentFilter filter = new IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION);
+    registerReceiver(mReceiver, filter);
     
     // Open Dictionary
     RecordManager recman;
@@ -258,63 +190,173 @@ public class SoftKeyboard extends InputMethodService implements
       t.setText("Dictionary not found/loaded: " + DICTIONARY);
       t.show();
     }
+  }
+  
+  @Override public void onDestroy() {
+      // mUserDictionary.close();
+      unregisterReceiver(mReceiver);
+      super.onDestroy();
+  }
+
+  @Override
+  public void onConfigurationChanged(Configuration conf) {
+    /*
+      if (!TextUtils.equals(conf.locale.toString(), mLocale)) {
+          initSuggest(conf.locale.toString());
+      }
+    */
+      super.onConfigurationChanged(conf);
+  }
+
+  /**
+   * Called by the framework when your view for creating input needs to be
+   * generated. This will be called the first time your input method is
+   * displayed, and every time it needs to be re-created such as due to a
+   * configuration change.
+   */
+  @Override
+  public View onCreateInputView() {
+    Log.d("TEST", "onCreateInputView(): isFullsreenMode() = " + isFullscreenMode());
+    mInputView = (LatinKeyboardView) getLayoutInflater().inflate(R.layout.input,
+        null);
+    mKeyboardSwitcher.setInputView(mInputView);
+    mKeyboardSwitcher.makeKeyboards();
+    mInputView.setOnKeyboardActionListener(this);
+    mInputView.setShifted(false);
+    mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_TEXT, 0);
+    return mInputView;
+  }
+
+  /**
+   * Called by the framework when your view for showing candidates needs to be
+   * generated, like {@link #onCreateInputView}.
+   */
+  @Override
+  public View onCreateCandidatesView() {
+    Log.d("TEST", "onCreateCandidatesView(): isFullscreenMode() = " + isFullscreenMode());
+    mKeyboardSwitcher.makeKeyboards();
+    mCandidateViewContainer = (CandidateViewContainer) getLayoutInflater().inflate(
+        R.layout.candidates, null);
+    mCandidateViewContainer.initViews();
+    mCandidateView = (CandidateView) mCandidateViewContainer.findViewById(R.id.candidates);
+    mCandidateView.setService(this);
+    return mCandidateViewContainer;
+  }
+
+  /**
+   * This is the main point where we do our initialization of the input method
+   * to begin operating on an application. At this point we have been bound to
+   * the client, and are now receiving all of the detailed information about the
+   * target of our edits.
+   */
+  @Override
+  public void onStartInput(EditorInfo attribute, boolean restarting) {
+    Log.d("TEST", "onStartInput()");
+    super.onStartInput(attribute, restarting);
+    
+    // This method gets called without the input view being created.
+    if (mInputView == null) {
+        onCreateInputView();
+    }
+    
+    initInputView(attribute, restarting);
+  }
+
+  private void initInputView(EditorInfo attribute, boolean restarting) {
+    mKeyboardSwitcher.makeKeyboards();
+
+    // Reset our state. We want to do this even if restarting, because
+    // the underlying state of the text editor could have changed in any way.
+    mComposing.setLength(0);
+    mKanji.setLength(0);
+    mCandidateList = null;
+    isOkurigana = false;
+    mCapsLock = false;
+    updateCandidates();
+
+    if (!restarting) {
+      // Clear shift states.
+      mMetaState = 0;
+    }
+
+    mPredictionOn = false;
+    mCompletionOn = false;
+    mCompletions = null;
+    mInputMode = ALPHABET;
 
     // We are now going to initialize our state based on the type of
     // text being edited.
+    Log.d("TEST", "case = " + (attribute.inputType & EditorInfo.TYPE_MASK_CLASS));
+    Log.d("TEST", "valiation = " + (attribute.inputType & EditorInfo.TYPE_MASK_VARIATION));
+    Log.d("TEST", "autocomplete = " + (attribute.inputType & EditorInfo.TYPE_TEXT_FLAG_AUTO_COMPLETE));
     switch (attribute.inputType & EditorInfo.TYPE_MASK_CLASS) {
-    case EditorInfo.TYPE_CLASS_NUMBER:
-    case EditorInfo.TYPE_CLASS_DATETIME:
+    case TYPE_CLASS_NUMBER:
+    case TYPE_CLASS_DATETIME:
       // Numbers and dates default to the symbols keyboard, with
       // no extra features.
-      mCurKeyboard = mSymbolsKeyboard;
-      mInputMode = ALPHABET;
+      //mCurKeyboard = mSymbolsKeyboard;
+      mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_TEXT,
+          attribute.imeOptions);
+      mKeyboardSwitcher.toggleSymbols();
       break;
 
-    case EditorInfo.TYPE_CLASS_PHONE:
+    case TYPE_CLASS_PHONE:
       // Phones will also default to the symbols keyboard, though
       // often you will want to have a dedicated phone keyboard.
-      mCurKeyboard = mPhoneKeyboard;
-      mInputMode = ALPHABET;
+      //mCurKeyboard = mPhoneKeyboard;
+      mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_PHONE,
+          attribute.imeOptions);
       break;
 
-    case EditorInfo.TYPE_CLASS_TEXT:
+    case TYPE_CLASS_TEXT:
       // This is general text editing. We will default to the
       // normal alphabetic keyboard, and assume that we should
       // be doing predictive text (showing candidates as the
       // user types).
-      mCurKeyboard = mQwertyKeyboard;
+      mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_TEXT,
+          attribute.imeOptions);
       mInputMode = HIRAKANA;
       mPredictionOn = true;
 
-      // We now look for a few special variations of text that will
-      // modify our behavior.
-      int variation = attribute.inputType & EditorInfo.TYPE_MASK_VARIATION;
-      if (variation == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
-          || variation == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD) {
-        // Do not display predictions / what the user is typing
-        // when they are entering a password.
+      // Make sure that passwords are not displayed in candidate view
+      int variation = attribute.inputType &  EditorInfo.TYPE_MASK_VARIATION;
+      switch (variation) {
+      case TYPE_TEXT_VARIATION_PASSWORD:
+      case TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
         mPredictionOn = false;
         mInputMode = ALPHABET;
+        break;
+      case TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
+        mPredictionOn = false;
+        mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_EMAIL,
+                attribute.imeOptions);
+        mInputMode = ALPHABET;
+        break;
+      case TYPE_TEXT_VARIATION_PERSON_NAME:
+        mPredictionOn = true;
+        mInputMode = HIRAKANA;
+        break;
+      case TYPE_TEXT_VARIATION_URI:
+        mPredictionOn = true;
+        mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_URL,
+                attribute.imeOptions);
+        mInputMode = ALPHABET;
+        break;
+      case TYPE_TEXT_VARIATION_SHORT_MESSAGE:
+        mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_IM,
+            attribute.imeOptions);
+        mPredictionOn = true;
+        mInputMode = HIRAKANA;
+        break;
+      case TYPE_TEXT_VARIATION_FILTER:
+        mPredictionOn = false;
+        mInputMode = ALPHABET;
+        break;
       }
 
-      if (variation == EditorInfo.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-          || variation == EditorInfo.TYPE_TEXT_VARIATION_URI
-          || variation == EditorInfo.TYPE_TEXT_VARIATION_FILTER) {
-        // Our predictions are not useful for e-mail addresses
-        // or URIs.
-        mPredictionOn = false;
-        mInputMode = ALPHABET;
-      }
-
-      if ((attribute.inputType & EditorInfo.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
-        // If this is an auto-complete text view, then our predictions
-        // will not be shown and instead we will allow the editor
-        // to supply their own. We only show the editor's
-        // candidates when in fullscreen mode, otherwise relying
-        // own it displaying its own UI.
-        mPredictionOn = false;
-        mCompletionOn = isFullscreenMode();
-        mInputMode = ALPHABET;
+      if ((attribute.inputType&EditorInfo.TYPE_TEXT_FLAG_AUTO_COMPLETE) != 0) {
+          mPredictionOn = true;
+          mCompletionOn = isFullscreenMode();
       }
 
       // We also want to look at the current state of the editor
@@ -326,14 +368,15 @@ public class SoftKeyboard extends InputMethodService implements
     default:
       // For all unknown input types, default to the alphabetic
       // keyboard with no special features.
-      mCurKeyboard = mQwertyKeyboard;
+      mKeyboardSwitcher.setKeyboardMode(KeyboardSwitcher.MODE_TEXT,
+          attribute.imeOptions);
       mInputMode = HIRAKANA;
       updateShiftKeyState(attribute);
     }
+    Log.d("TEST", "onStartupInput: Result: mPredictionOn = " + mPredictionOn + " mCompletionOn = " + mCompletionOn);
 
-    // Update the label on the enter key, depending on what the application
-    // says it will do.
-    mCurKeyboard.setImeOptions(getResources(), attribute.imeOptions, 0);
+    mInputView.closing();
+    if (mCandidateView != null) mCandidateView.setSuggestions(null, false, false);
   }
 
   /**
@@ -358,7 +401,6 @@ public class SoftKeyboard extends InputMethodService implements
     // its window.
     setCandidatesViewShown(false);
 
-    mCurKeyboard = mQwertyKeyboard;
     if (mInputView != null) {
       mInputView.closing();
     }
@@ -368,9 +410,7 @@ public class SoftKeyboard extends InputMethodService implements
   public void onStartInputView(EditorInfo attribute, boolean restarting) {
     Log.d("TEST", "onStartInputView()");
     super.onStartInputView(attribute, restarting);
-    // Apply the selected keyboard to the input view.
-    mInputView.setKeyboard(mCurKeyboard);
-    mInputView.closing();
+    initInputView(attribute, restarting);
   }
 
   /**
@@ -411,8 +451,10 @@ public class SoftKeyboard extends InputMethodService implements
       ArrayList<String> stringList = new ArrayList<String>();
       for (int i = 0; i < completions.length; i++) {
         CompletionInfo ci = completions[i];
-        if (ci != null)
-          stringList.add(ci.getText().toString());
+        if (ci != null) {
+          CharSequence s = ci.getText();
+          if (s != null) stringList.add(s.toString());
+        }
       }
       mChoosedIndex = 0;
       setSuggestions(stringList, true, true);
@@ -473,6 +515,8 @@ public class SoftKeyboard extends InputMethodService implements
     Log.d("TEST", "onKeyDown(): keyCode = " + keyCode + " mInputMode = " + mInputMode);
     Log.d("TEST", "mComposing = " + mComposing + " mKanji = " + mKanji);
 
+    if (mPredictionOn == false) return super.onKeyDown(keyCode, event);
+    
     InputConnection ic = getCurrentInputConnection();
     
     switch (keyCode) {
@@ -533,7 +577,7 @@ public class SoftKeyboard extends InputMethodService implements
   // 漢字にするひらがなが決定したときにモードは漢字選択モードのCHOOSEになる
   public void onKey(int pcode, int[] keyCodes) {
     Log.d("TEST", "onKey():: " + pcode + "(" + (char) pcode + ") mComp = "
-        + mComposing + " mKanji = " + mKanji + " im = " + mInputMode);
+        + mComposing + " mKanji = " + mKanji + " im = " + mInputMode + " isFullScreen() = " + isFullscreenMode());
     EditorInfo ciei = getCurrentInputEditorInfo();
     InputConnection ic = getCurrentInputConnection();
 
@@ -553,6 +597,18 @@ public class SoftKeyboard extends InputMethodService implements
     case Keyboard.KEYCODE_SHIFT:
       handleShift();
       return;
+    case LatinKeyboardView.KEYCODE_SHIFT_LONGPRESS:
+      if (mCapsLock) {
+          handleShift();
+      } else {
+          toggleCapsLock();
+      }
+      updateShiftKeyState(ciei);
+      return;
+    case LatinKeyboardView.KEYCODE_SLASH_LONGPRESS:
+      if (mInputMode == ALPHABET || mInputMode == ZENKAKU) 
+        mInputMode = HIRAKANA;
+      return;
     case Keyboard.KEYCODE_CANCEL:
       if (mInputMode == ALPHABET || mInputMode == ZENKAKU) {
         mInputMode = HIRAKANA;
@@ -566,21 +622,7 @@ public class SoftKeyboard extends InputMethodService implements
       return;
     case Keyboard.KEYCODE_MODE_CHANGE:
       if (mInputView != null) {
-        Keyboard current = mInputView.getKeyboard();
-        if (current == mSymbolsKeyboard || current == mSymbolsShiftedKeyboard) {
-          current = mQwertyKeyboard;
-        } else if (current == mPhoneKeyboard) {
-          current = mPhoneSymbolsKeyboard;
-        } else if (current == mPhoneSymbolsKeyboard) {
-          current = mPhoneKeyboard;
-        } else {
-          current = mSymbolsKeyboard;
-        }
-        mInputView.setKeyboard(current);
-        if (current == mSymbolsKeyboard) {
-          current.setShifted(false);
-        }
-        mCurKeyboard = (LatinKeyboard)current;
+        changeKeyboardMode();
       }
       return;
     case 0x0A: // Enter Key
@@ -596,14 +638,12 @@ public class SoftKeyboard extends InputMethodService implements
         break;
       case KANJI:
         ic.commitText(mKanji.append(mComposing), 1);
-        ic.commitText(mComposing, 1);
         mComposing.setLength(0);
         mKanji.setLength(0);
         mInputMode = HIRAKANA;
         break;
       default:
-        ic.commitText(mKanji, 1);
-        ic.commitText(mComposing, 1);
+        ic.commitText(mKanji.append(mComposing), 1);
         mComposing.setLength(0);
         mKanji.setLength(0);
         keyDownUp(KeyEvent.KEYCODE_ENTER);
@@ -875,7 +915,17 @@ public class SoftKeyboard extends InputMethodService implements
     Log.d("TEST", "--------------------------------------------------------------------------------");
   }
 
+  private void changeKeyboardMode() {
+    mKeyboardSwitcher.toggleSymbols();
+    if (mCapsLock && mKeyboardSwitcher.isAlphabetMode()) {
+        ((LatinKeyboard) mInputView.getKeyboard()).setShiftLocked(mCapsLock);
+    }
+
+    updateShiftKeyState(getCurrentInputEditorInfo());
+  }
+
   private void choosePrevious(InputConnection ic) {
+    if (mSuggestions == null) return;
     String cad;
     mChoosedIndex--;
     if (mChoosedIndex < 0) mChoosedIndex = mSuggestions.size() - 1;
@@ -887,6 +937,7 @@ public class SoftKeyboard extends InputMethodService implements
   }
 
   private void chooseNext(InputConnection ic) {
+    if (mSuggestions == null) return;
     mChoosedIndex++;
     if (mChoosedIndex >= mSuggestions.size()) mChoosedIndex = 0;
     mCandidateView.choose(mChoosedIndex);
@@ -1009,12 +1060,13 @@ public class SoftKeyboard extends InputMethodService implements
    * editor state.
    */
   private void updateShiftKeyState(EditorInfo attr) {
-    if (attr != null && mInputView != null
-        && mQwertyKeyboard == mInputView.getKeyboard()) {
+    InputConnection ic = getCurrentInputConnection();
+    if (attr != null && mInputView != null && mKeyboardSwitcher.isAlphabetMode()
+        && ic != null) {
       int caps = 0;
       EditorInfo ei = getCurrentInputEditorInfo();
       if (ei != null && ei.inputType != EditorInfo.TYPE_NULL) {
-        caps = getCurrentInputConnection().getCursorCapsMode(attr.inputType);
+        caps = ic.getCursorCapsMode(attr.inputType);
       }
       // カーソル位置で自動シフトオンの機能はうざいのでやめ
       // mInputView.setShifted(mCapsLock || caps != 0);
@@ -1243,7 +1295,8 @@ public class SoftKeyboard extends InputMethodService implements
 
     } else { // length == 0
       if (klen > 0) mKanji.delete(klen - 1, klen);
-      keyDownUp(KeyEvent.KEYCODE_DEL);
+      ic.setComposingText(mKanji, 1);
+      if (klen == 0) keyDownUp(KeyEvent.KEYCODE_DEL);
     }
     if (mSuggestions != null) mSuggestions.clear();
     updateCandidates();
@@ -1282,18 +1335,12 @@ public class SoftKeyboard extends InputMethodService implements
     }
 
     Keyboard currentKeyboard = mInputView.getKeyboard();
-    if (mQwertyKeyboard == currentKeyboard) {
-      // Alphabet keyboard
-      checkToggleCapsLock();
-      mInputView.setShifted(mCapsLock || !mInputView.isShifted());
-    } else if (currentKeyboard == mSymbolsKeyboard) {
-      mSymbolsKeyboard.setShifted(true);
-      mInputView.setKeyboard(mSymbolsShiftedKeyboard);
-      mSymbolsShiftedKeyboard.setShifted(true);
-    } else if (currentKeyboard == mSymbolsShiftedKeyboard) {
-      mSymbolsShiftedKeyboard.setShifted(false);
-      mInputView.setKeyboard(mSymbolsKeyboard);
-      mSymbolsKeyboard.setShifted(false);
+    if (mKeyboardSwitcher.isAlphabetMode()) {
+        // Alphabet keyboard
+        checkToggleCapsLock();
+        mInputView.setShifted(mCapsLock || !mInputView.isShifted());
+    } else {
+        mKeyboardSwitcher.toggleShift();
     }
   }
 
@@ -1338,12 +1385,8 @@ public class SoftKeyboard extends InputMethodService implements
   }
 
   private void checkToggleCapsLock() {
-    long now = System.currentTimeMillis();
-    if (mLastShiftTime + 800 > now) {
-      mCapsLock = !mCapsLock;
-      mLastShiftTime = 0;
-    } else {
-      mLastShiftTime = now;
+    if (mInputView.getKeyboard().isShifted()) {
+      toggleCapsLock();
     }
   }
 
@@ -1412,6 +1455,13 @@ public class SoftKeyboard extends InputMethodService implements
       }
     }
   }
+  
+  private void toggleCapsLock() {
+      mCapsLock = !mCapsLock;
+      if (mKeyboardSwitcher.isAlphabetMode()) {
+          ((LatinKeyboard) mInputView.getKeyboard()).setShiftLocked(mCapsLock);
+      }
+  }
 
   public void swipeRight() {
     if (mCompletionOn) {
@@ -1434,6 +1484,24 @@ public class SoftKeyboard extends InputMethodService implements
   }
 
   public void onRelease(int primaryCode) {
+  }
+  
+  // receive ringer mode changes to detect silent mode
+  private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+      @Override
+      public void onReceive(Context context, Intent intent) {
+          updateRingerMode();
+      }
+  };
+
+  // update flags for silent mode
+  private void updateRingerMode() {
+      if (mAudioManager == null) {
+          mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+      }
+      if (mAudioManager != null) {
+          mSilentMode = (mAudioManager.getRingerMode() != AudioManager.RINGER_MODE_NORMAL);
+      }
   }
 
   @Override

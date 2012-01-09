@@ -1,0 +1,23 @@
+* Android SKK
+
+SKKのAndroid用バージョンです。
+
+複数の方が各Android端末向けにカスタマイズしたバージョンを作っていますので、
+管理のためにまとめました。
+
+このレポジトリは下記のレポジトリ、ソースアーカイブからのコピーを含んでいます。
+
+オリジナルAndroid SKK (minghai氏)
+http://code.google.com/p/android-apps-by-minghai/
+
+hard-keyバージョン (海月玲二氏)
+http://homepage1.nifty.com/ray-mizuki/software/skk_jp.html
+
+Lifetouch Noteバージョン (Tomio Narita氏)
+
+各作者の方には感謝致します。
+
+* ライセンス
+
+各元バージョンはApache License 2.0であることを確認してあります。
+

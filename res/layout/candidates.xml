@@ -18,7 +18,7 @@
 */
 -->
 
-<minghai.skk.CandidateViewContainer
+<jp.deadend.noname.skk.CandidateViewContainer
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:orientation="horizontal"
         android:layout_width="fill_parent"
@@ -47,7 +47,7 @@
             />
     </LinearLayout>
     
-    <minghai.skk.CandidateView
+    <jp.deadend.noname.skk.CandidateView
         android:id="@+id/candidates"
         android:layout_width="wrap_content"
         android:layout_height="24dp"
@@ -76,4 +76,4 @@
             />
     </LinearLayout>        
     
-</minghai.skk.CandidateViewContainer>
+</jp.deadend.noname.skk.CandidateViewContainer>

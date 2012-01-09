@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array name="kutouten_entries">
+	<item>． ， (ピリオドとカンマ)</item>
+	<item>。 、 (マルとテン)</item>
+	<item>。 ， (マルとカンマ)</item>
+  </string-array>
+  <string-array name="kutouten_values">
+	<item>en</item>
+	<item>jp</item>
+	<item>jp_en</item>
+  </string-array>
+</resources>

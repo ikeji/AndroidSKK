@@ -15,56 +15,27 @@
 -->
 
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-        android:title="SKK Settings"
-        android:key="skk_ime_settings">
- 
-    <CheckBoxPreference
-            android:key="vibrate_on"
-            android:title="バイブレーター"
-            android:persistent="true"
-            />
-
-    <CheckBoxPreference
-            android:key="sound_on"
-            android:title="打鍵音"
-            android:persistent="true" 
-            />
-
-    <CheckBoxPreference
-            android:key="auto_cap"
-            android:title="自動先頭大文字"
-            android:persistent="true"
-            android:defaultValue="true"
-            />
-
-    <PreferenceCategory
-            android:title="予測カテゴリ"
-            android:key="prediction_settings">
-
-        <CheckBoxPreference
-            android:key="quick_fixes"
-            android:title="quick_fixes"
-            android:summary="quick_fixes_summary"
-            android:persistent="true"
-            android:defaultValue="true"
-            />
-
-        <CheckBoxPreference
-            android:key="show_suggestions"
-            android:title="show_suggestions"
-            android:summary="how_suggestions_summary"
-            android:persistent="true"
-            android:defaultValue="true"
-            />
-
-        <CheckBoxPreference
-            android:key="auto_complete"
-            android:title="auto_complete"
-            android:summary="auto_complete_summary"
-            android:persistent="true" 
-            android:defaultValue="true"
-            android:dependency="show_suggestions"
-            />
-
-    </PreferenceCategory>            
+  android:title="SKK Preferences"
+  android:summary="location of dictionary, default mode">
+  
+  <EditTextPreference
+     android:key="pref_dict_dir"
+     android:title="辞書ディレクトリ"
+     android:summary="SKK用の辞書を置くディレクトリを指定"
+     android:defaultValue="/sdcard/.skk" />
+  <ListPreference
+     android:key="pref_kutouten_type"
+     android:title="句読点のタイプ"
+     android:summary="かなモードで入力される句読点を選択"
+     android:entries="@array/kutouten_entries"
+     android:entryValues="@array/kutouten_values"
+     android:dialogTitle="Select kutouten type"
+     android:defaultValue="en" />
+  <jp.deadend.noname.skk.SetKeyPreference
+	 android:key="pref_kana_key"
+	 android:title="かなキー"
+	 android:summary="かなモードに移行するキーを設定 (デフォルトはIS01の「文字」キー)"
+	 android:dialogTitle="Press a key ..."
+	 android:negativeButtonText="Cancel"
+	 android:positiveButtonText="Ok" />
 </PreferenceScreen>

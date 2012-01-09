@@ -30,12 +30,36 @@
      android:entries="@array/kutouten_entries"
      android:entryValues="@array/kutouten_values"
      android:dialogTitle="Select kutouten type"
-     android:defaultValue="en" />
+     android:defaultValue="jp" />
   <jp.deadend.noname.skk.SetKeyPreference
 	 android:key="pref_kana_key"
 	 android:title="かなキー"
-	 android:summary="かなモードに移行するキーを設定 (デフォルトはIS01の「文字」キー)"
+	 android:summary="かなモードに移行するキーを設定 (デフォルトは「無変換」キー)"
 	 android:dialogTitle="Press a key ..."
 	 android:negativeButtonText="Cancel"
 	 android:positiveButtonText="Ok" />
+   <ListPreference
+     android:key="pref_emacs_bindings"
+     android:title="Emacs風バインディング"
+     android:summary="Emacs風バインディングの有効・無効を選択"
+     android:entries="@array/emacs_bindings_entries"
+     android:entryValues="@array/emacs_bindings_values"
+     android:dialogTitle="Select Emacs-like Bindings flag"
+     android:defaultValue="enable" />
+   <ListPreference
+     android:key="pref_eng2jp"
+     android:title="英字変換"
+     android:summary="英字変換(かなモードで / +英語)の有効・無効を選択"
+     android:entries="@array/eng2jp_entries"
+     android:entryValues="@array/eng2jp_values"
+     android:dialogTitle="Select English to Japanese flag"
+     android:defaultValue="enable" />
+   <ListPreference
+     android:key="pref_openwithkana"
+     android:title="SKK切り替え時、かなモードに戻す"
+     android:summary="SKK切り替え時、かなモードに戻すか選択"
+     android:entries="@array/openwithkana_entries"
+     android:entryValues="@array/openwithkana_values"
+     android:dialogTitle="Select Open with Kana Mode flag"
+     android:defaultValue="enable" />
 </PreferenceScreen>

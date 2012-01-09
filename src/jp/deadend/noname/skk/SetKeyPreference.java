@@ -29,9 +29,9 @@ public class SetKeyPreference extends DialogPreference implements OnKeyListener 
 
   @Override protected View onCreateDialogView() {
 	if (mSharedPrefs != null && mKey != null) {
-	  mKeyCode = mSharedPrefs.getInt(mKey, 93);
+	  mKeyCode = mSharedPrefs.getInt(mKey, 118);
 	} else {
-	  mKeyCode = 93;
+	  mKeyCode = 118;
 	}
 
 	mKeyCodeText = new TextView(this.getContext());

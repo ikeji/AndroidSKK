@@ -12,25 +12,28 @@ public class SKKPrefs extends PreferenceActivity {
     private static final String PREFKEY_DICT_DIR = "pref_dict_dir";
     private static final String PREFKEY_KUTOUTEN_TYPE = "pref_kutouten_type";
     private static final String PREFKEY_KANA_KEY = "pref_kana_key";
-  
+    private static final String PREFKEY_EMACS_BINDINGS = "pref_emacs_bindings";
+    private static final String PREFKEY_ENG2JP = "pref_eng2jp";
+    private static final String PREFKEY_OPENWITHKANA = "pref_openwithkana";
+    
     @Override protected void onCreate(Bundle icicle) {
-	super.onCreate(icicle);
-	addPreferencesFromResource(R.xml.prefs);
+    	super.onCreate(icicle);
+    	addPreferencesFromResource(R.xml.prefs);
 
-	Preference kanaKeyPref = getPreferenceManager().findPreference(PREFKEY_KANA_KEY);
-	if (kanaKeyPref != null) {
-	  SetKeyPreference config = (SetKeyPreference)kanaKeyPref;
-	  config.setKey(PREFKEY_KANA_KEY);
-	  config.setPrefs(PreferenceManager.getDefaultSharedPreferences(getBaseContext()));
-        }
+    	Preference kanaKeyPref = getPreferenceManager().findPreference(PREFKEY_KANA_KEY);
+    	if (kanaKeyPref != null) {
+    		SetKeyPreference config = (SetKeyPreference)kanaKeyPref;
+    		config.setKey(PREFKEY_KANA_KEY);
+    		config.setPrefs(PreferenceManager.getDefaultSharedPreferences(getBaseContext()));
+    	}
     }
 
     public static String getPrefDictDir(Context context) {
-	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_DICT_DIR, "/sdcard/.skk");
+    	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_DICT_DIR, "/sdcard/.skk");
     }
 
     public static String getPrefKutoutenType(Context context) {
-	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_KUTOUTEN_TYPE, "en");
+    	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_KUTOUTEN_TYPE, "jp");
     }
   /*
     public static String getPrefDefaultMode(Context context) {
@@ -39,6 +42,18 @@ public class SKKPrefs extends PreferenceActivity {
   */
 
     public static int getPrefKanaKey(Context context) {
-	return PreferenceManager.getDefaultSharedPreferences(context).getInt(PREFKEY_KANA_KEY, 93);
+    	return PreferenceManager.getDefaultSharedPreferences(context).getInt(PREFKEY_KANA_KEY, 118); // Muhenkan
+    }
+    
+    public static String getEmacsBindingsTranslate(Context context) {
+    	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_EMACS_BINDINGS, "enable");
+    }
+
+    public static String getEng2Jp(Context context) {
+    	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_ENG2JP, "enable");
+    }
+    
+    public static String getOpenWithKana(Context context) {
+    	return PreferenceManager.getDefaultSharedPreferences(context).getString(PREFKEY_OPENWITHKANA, "enable");
     }
 }

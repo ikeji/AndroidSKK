@@ -8,12 +8,15 @@ SKKのAndroid用バージョンです。
 このレポジトリは下記のレポジトリ、ソースアーカイブからのコピーを含んでいます。
 
 オリジナルAndroid SKK (minghai氏)
+Branch:minghai
 http://code.google.com/p/android-apps-by-minghai/
 
 hard-keyバージョン (海月玲二氏)
+Branch:hard-key
 http://homepage1.nifty.com/ray-mizuki/software/skk_jp.html
 
 Lifetouch Noteバージョン (Tomio Narita氏)
+Branch:ltn
 http://www.enjoyphoto.jp/skk_ltn.html
 
 各作者の方には感謝致します。
